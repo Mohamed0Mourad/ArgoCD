@@ -1,12 +1,14 @@
-#nginx service
 apiVersion: v1
 kind: Service
 metadata:
   name: nginx-service
   labels:
     app: nginx
-spec: 
-    - port: 80
-      targetPort: 80
-selector:
-    app: nginx 
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
