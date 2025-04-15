@@ -9,7 +9,7 @@ This repository demonstrates different ways to deploy applications to [ArgoCD](h
 
 > 💡 Learn how to manage app deployments using GitOps with practical examples.
 
-## 🚀 Getting Started
+## 🚀 Getting Started With Manifest files
 
 ### 1. Add the Repository to ArgoCD
 
