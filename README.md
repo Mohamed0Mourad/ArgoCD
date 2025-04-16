@@ -154,3 +154,77 @@ nginx-5d568c4c64-abcd6   1/1     Running   0          1m
 Below is a screenshot after scaling to 6 pods in the ArgoCD UI:
 📸 
 ![Screenshot from 2025-04-16 00-41-29](https://github.com/user-attachments/assets/78803b2d-be0c-4a79-ba86-6ec390837ca3)
+
+
+## 2️⃣ Deploying Application Using a Community Helm Chart
+
+This section demonstrates how to deploy an application using a public Helm chart (`httpbin`).
+
+---
+
+### Create `httpbin.yaml`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: httpbin
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: httpbin
+    repoURL: https://matheusfm.dev/charts
+    targetRevision: 0.1.1
+    helm:
+      releaseName: httpbin
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+```
+
+---
+
+### Steps to Deploy
+
+```bash
+git checkout -b feature/add-httpbin-chart
+git add httpbin.yaml
+git commit -m "Adds the HTTPbin chart"
+git push --set-upstream origin feature/add-httpbin-chart
+```
+
+1. Copy the merge request link that appears in the terminal.
+2. Open it in your browser.
+3. Approve and merge the MR.
+
+---
+
+### Refresh and Sync in ArgoCD
+
+- Go to the ArgoCD UI
+- Click **Refresh** to fetch the new application
+- You will see the **HTTPbin** app with a Helm chart icon
+
+---
+
+### Verify Deployment
+
+```bash
+kubectl get pods
+```
+
+**Example Output:**
+
+```
+NAME                       READY   STATUS    RESTARTS   AGE
+httpbin-xxxxxx-yyyyy       1/1     Running   0          1m
+```
+
+Your HTTPbin application is now running in the cluster via Helm and fully GitOps-enabled with ArgoCD.
+
+![Screenshot from 2025-04-16 02-50-51](https://github.com/user-attachments/assets/6f1770c7-e3f0-4713-bf7c-8eb9a60fa0f7)
