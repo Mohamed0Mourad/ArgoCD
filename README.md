@@ -228,3 +228,213 @@ httpbin-xxxxxx-yyyyy       1/1     Running   0          1m
 Your HTTPbin application is now running in the cluster via Helm and fully GitOps-enabled with ArgoCD.
 
 ![Screenshot from 2025-04-16 02-50-51](https://github.com/user-attachments/assets/6f1770c7-e3f0-4713-bf7c-8eb9a60fa0f7)
+
+## 3️⃣ Deploying Application Using Kustomize
+
+This example shows how to deploy the **Caddy web server** using Kustomize and ArgoCD.
+
+---
+
+### Base Setup
+
+#### `deployment.yaml`
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: caddy
+  template:
+    metadata:
+      labels:
+        app: caddy
+    spec:
+      containers:
+      - name: caddy
+        image: caddy:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+        - name: caddy-config
+          mountPath: /etc/caddy/
+          readOnly: true
+      volumes:
+      - name: caddy-config
+        configMap:
+          name: caddy-config
+```
+
+#### `Caddyfile`
+
+```caddyfile
+:80
+log {
+    output stdout
+    format json
+}
+root * /usr/share/caddy
+file_server
+```
+
+#### `service.yaml`
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: caddy-service
+spec:
+  selector:
+    app: caddy
+  ports:
+  - name: http
+    port: 80
+```
+
+#### `ingress.yaml`
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: caddy-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: caddy-service
+            port:
+              name: http
+```
+
+#### `kustomization.yaml` (Base)
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+configMapGenerator:
+  - name: caddy-config
+    files:
+      - Caddyfile
+
+namespace: default
+```
+
+---
+
+### Overlay Setup
+
+#### `ingress.yaml` (Overlay Patch)
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: caddy-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /caddy
+        pathType: Prefix
+        backend:
+          service:
+            name: caddy-service
+            port:
+              name: http
+```
+
+#### `kustomization.yaml` (Overlay)
+
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../base
+
+namespace: default
+
+patches:
+  - path: ingress.yaml
+    target:
+      kind: Ingress
+      name: caddy-ingress
+```
+
+---
+
+### Argo CD Application File
+
+#### `caddy.yaml`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: caddy
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://gitlab.com/[username]/samplegitopsapp.git'
+    path: overlays
+    targetRevision: main
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+```
+
+---
+
+### Deploy and Sync
+
+```bash
+git checkout -b "feature/adds-caddy"
+git add -A
+git commit -m "Adds Caddy web server"
+git push --set-upstream origin feature/adds-caddy
+```
+
+1. Click on the MR link, approve and merge it to main.
+2. Go to ArgoCD UI and refresh the app.
+3. Verify resources:
+
+```bash
+kubectl get pods
+kubectl get svc
+kubectl get configmaps
+kubectl get ing
+```
+
+4. Visit `/caddy` in your browser.
+
+---
+
+✅ Congratulations! You've now deployed using Kustomize with ArgoCD.
+
